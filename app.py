@@ -5,9 +5,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import subprocess
 from tqdm import tqdm
+import argparse
 
-def generate_frames(audio_path, tmp_dir, fps=30, max_duration=60):
-    y, sr = librosa.load(audio_path, duration=max_duration)
+def generate_frames(audio_path, tmp_dir, line_color="blue", bg_color="white", fps=30):
+    y, sr = librosa.load(audio_path)
     y = y / np.max(np.abs(y))  # Normalize
     total_frames = int(librosa.get_duration(y=y, sr=sr) * fps)
     samples_per_frame = int(sr / fps)
@@ -19,8 +20,9 @@ def generate_frames(audio_path, tmp_dir, fps=30, max_duration=60):
         end = start + samples_per_frame * 2
         snippet = y[start:end]
 
-        fig, ax = plt.subplots(figsize=(10, 4))
-        ax.plot(snippet, color='blue')
+        fig, ax = plt.subplots(figsize=(10, 4), facecolor=bg_color)
+        ax.plot(snippet, color=line_color)
+        ax.set_facecolor(bg_color)
         ax.set_xlim([0, len(snippet)])
         ax.set_ylim([-1, 1])
         ax.axis('off')
@@ -54,16 +56,27 @@ def cleanup(tmp_dir):
     os.rmdir(tmp_dir)
 
 def main():
-    if len(sys.argv) != 3:
-        print("Usage: python music_visualizer.py <input_audio> <output_video.mp4>")
-        sys.exit(1)
+    parser = argparse.ArgumentParser(description="Generate a simple music visualization video")
+    parser.add_argument("input_audio", help="Path to the input audio file")
+    parser.add_argument("output_video", help="Path to save the output video")
+    parser.add_argument("--line-color", default="blue", dest="line_color",
+                        help="Line color for the waveform (name or hex)")
+    parser.add_argument("--bg-color", default="white", dest="bg_color",
+                        help="Background color (name or hex)")
+    args = parser.parse_args()
 
-    audio_path = sys.argv[1]
-    output_path = sys.argv[2]
+    audio_path = args.input_audio
+    output_path = args.output_video
+    line_color = args.line_color
+    bg_color = args.bg_color
+
     tmp_dir = "frames_temp"
     fps = 30
 
-    total_frames = generate_frames(audio_path, tmp_dir, fps=fps)
+    total_frames = generate_frames(audio_path, tmp_dir,
+                                   line_color=line_color,
+                                   bg_color=bg_color,
+                                   fps=fps)
     make_video_with_ffmpeg(tmp_dir, audio_path, output_path, fps)
     cleanup(tmp_dir)
     print(f"✅ Video saved to: {output_path}")
